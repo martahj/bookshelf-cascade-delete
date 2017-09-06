@@ -26,13 +26,18 @@ export default Bookshelf => {
     }
 
     return reduce(this.dependents, (result, dependent) => {
-      const { relatedData } = this.prototype[dependent]();
+      const dependentObject = typeof dependent === 'object';
+      const dependentName = dependentObject ? dependent.name : dependent;
+      const { relatedData } = this.prototype[dependentName]();
       const skipDependents = relatedData.type === 'belongsToMany';
+
+      const keyNotOverriden = relatedData.key('foreignKey');
+      const overrideKey = dependentObject && dependent.keyOverrides && dependent.keyOverrides.foreignKey;
 
       return [
         ...result, {
           dependents: dependencyMap.call(relatedData.target, skipDependents),
-          key: relatedData.key('foreignKey'),
+          key: overrideKey || keyNotOverriden,
           model: relatedData.target,
           skipDependents,
           tableName: skipDependents ? relatedData.joinTable() : relatedData.target.prototype.tableName
@@ -49,6 +54,7 @@ export default Bookshelf => {
     // Stringify in case of parent being an instance of query.
     const parentValue = typeof parent === 'number' || typeof parent === 'string' ? `'${parent}'` : parent.toString();
     const dependencies = dependencyMap.call(this);
+    // console.log('got dependencies', dependencies);
 
     // Build delete queries for each dependent.
     return reduce(dependencies, (result, { tableName, key, model, skipDependents }) => {
